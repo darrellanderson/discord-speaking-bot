@@ -1,12 +1,16 @@
-import exp from "constants";
-import { SpeakingHistory } from "./speaking-history";
+import { ISpeakingHistoryListener, SpeakingHistory } from "./speaking-history";
+
+class TestListener implements ISpeakingHistoryListener {
+  onSpeakingHistoryUpdated(speakingHistory: SpeakingHistory): void {}
+  onSpeakingHistoryDisconnected(): void {}
+}
 
 it("constructor", () => {
-  new SpeakingHistory();
+  new SpeakingHistory(new TestListener());
 });
 
 it("summary", () => {
-  const history = new SpeakingHistory();
+  const history = new SpeakingHistory(new TestListener());
   history.onSpeakingStart("alice");
   history.onSpeakingStart("bob");
   history.onSpeakingEnd("bob");

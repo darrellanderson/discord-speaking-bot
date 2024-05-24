@@ -1,3 +1,5 @@
+import { SlashCommandBuilder } from "discord.js";
+
 /**
  * Called each time the slash command is invoked, with the slash message.
  */

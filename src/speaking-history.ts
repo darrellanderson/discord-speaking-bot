@@ -1,5 +1,10 @@
 import { ISpeakingListener } from "./speaking";
 
+export interface ISpeakingHistoryListener {
+  onSpeakingHistoryUpdated(speakingHistory: SpeakingHistory): void;
+  onSpeakingHistoryDisconnected(): void;
+}
+
 type SpeakingRecord = {
   speaker: string;
   startTimestamp: number;
@@ -8,12 +13,16 @@ type SpeakingRecord = {
 
 export class SpeakingHistory implements ISpeakingListener {
   private readonly EVICT_MSECS = 5 * 60 * 1000;
+
+  private readonly _listener: ISpeakingHistoryListener;
   private readonly _speakerToStartTimestamp: Map<string, number> = new Map();
   private readonly _speakingRecords: Array<SpeakingRecord> = [];
 
   private _characterBudget: number = 2000; // Discord message limit 2000
 
-  constructor() {}
+  constructor(listener: ISpeakingHistoryListener) {
+    this._listener = listener;
+  }
 
   setCharacterBudget(characterBudget: number): this {
     this._characterBudget = characterBudget;
@@ -73,9 +82,13 @@ export class SpeakingHistory implements ISpeakingListener {
       startTimestamp,
       endTimestamp: Date.now(),
     });
+
+    this._listener.onSpeakingHistoryUpdated(this);
   }
 
-  onSpeakingDisconnected(): void {}
+  onSpeakingDisconnected(): void {
+    this._listener.onSpeakingHistoryDisconnected();
+  }
 
   _evictOldRecords(now: number = Date.now()): void {
     this._speakingRecords.forEach((record) => {
