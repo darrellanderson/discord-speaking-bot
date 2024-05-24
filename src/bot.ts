@@ -1,4 +1,10 @@
-import { Client, Events, GatewayIntentBits, Interaction } from "discord.js";
+import {
+  Channel,
+  Client,
+  Events,
+  GatewayIntentBits,
+  Interaction,
+} from "discord.js";
 import { SlashCommand, ISlashCommandListener } from "./slash-command";
 import { ISpeakingHistoryListener, SpeakingHistory } from "./speaking-history";
 import { Speaking } from "./speaking";
@@ -10,30 +16,35 @@ class BotInstance implements ISpeakingHistoryListener {
   private readonly _speakingHistory: SpeakingHistory;
   private readonly _speaking: Speaking;
 
-  constructor(channel: any) {
-    this._channelId = channel.channelId;
-    this._speakingHistory = new SpeakingHistory(this);
-    this._speaking = new Speaking(this._speakingHistory).connect(channel);
+  constructor(channel: Channel) {
+    this._channelId = channel.id;
+    this._speakingHistory = new SpeakingHistory(this).setVerbose(true);
+    this._speaking = new Speaking(this._speakingHistory).setVerbose(true);
 
     // Remove any existing bot instance.
-    const botInstance = BotInstance._channelIdToBotInstance.get(
-      this._channelId
-    );
+    const botInstance: BotInstance | undefined =
+      BotInstance._channelIdToBotInstance.get(this._channelId);
     if (botInstance) {
+      console.log("BotInstance: closing existing bot instance");
       botInstance.close();
     }
 
     // Register this bot instance.
+    console.log("BotInstance: registering bot instance");
     BotInstance._channelIdToBotInstance.set(this._channelId, this);
+
+    // Connect to the channel.
+    this._speaking.connect(channel);
   }
 
   close() {
+    console.log("BotInstance: closing bot instance");
     this._speaking.disconnect();
     BotInstance._channelIdToBotInstance.delete(this._channelId);
   }
 
   onSpeakingHistoryUpdated(speakingHistory: SpeakingHistory): void {
-    const summary = speakingHistory.summary();
+    const summary: string = speakingHistory.summary();
 
     // TODO update summary in channel message
   }
@@ -46,7 +57,11 @@ class BotInstance implements ISpeakingHistoryListener {
 class BotSlashCommandListener implements ISlashCommandListener {
   onSlashCommand(interaction: Interaction) {
     console.log("BotSlashCommandListener: onSlashCommand");
-    const channel = interaction.channel;
+    const channel: Channel | null = interaction.channel;
+    if (!channel) {
+      console.error("BotSlashCommandListener: no channel, aborting");
+      return;
+    }
     new BotInstance(channel);
   }
 }

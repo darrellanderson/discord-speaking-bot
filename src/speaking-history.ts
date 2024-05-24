@@ -18,10 +18,17 @@ export class SpeakingHistory implements ISpeakingListener {
   private readonly _speakerToStartTimestamp: Map<string, number> = new Map();
   private readonly _speakingRecords: Array<SpeakingRecord> = [];
 
+  private _verbose: boolean = false;
+
   private _characterBudget: number = 2000; // Discord message limit 2000
 
   constructor(listener: ISpeakingHistoryListener) {
     this._listener = listener;
+  }
+
+  setVerbose(verbose: boolean): this {
+    this._verbose = verbose;
+    return this;
   }
 
   setCharacterBudget(characterBudget: number): this {
@@ -65,6 +72,12 @@ export class SpeakingHistory implements ISpeakingListener {
   onSpeakingConnected(): void {}
 
   onSpeakingStart(speaker: string): void {
+    const startTimestamp: number | undefined =
+      this._speakerToStartTimestamp.get(speaker);
+    if (startTimestamp === undefined && this._verbose) {
+      console.log(`SpeakingHistory: onSpeakingStart ${speaker}`);
+    }
+
     this._speakerToStartTimestamp.set(speaker, Date.now());
   }
 
@@ -76,6 +89,9 @@ export class SpeakingHistory implements ISpeakingListener {
       return;
     }
     this._speakerToStartTimestamp.delete(speaker);
+    if (this._verbose) {
+      console.log(`SpeakingHistory: onSpeakingEnd ${speaker}`);
+    }
 
     this._speakingRecords.push({
       speaker: speaker,

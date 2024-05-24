@@ -46,21 +46,24 @@ export class SlashCommand {
       }
     );
 
-    const rest = new REST().setToken(auth.DISCORD_TOKEN);
-    (async () => {
-      try {
-        console.log(
-          `ShalshCommand: refreshing ${commands.length} application (/) commands.`
-        );
-        await rest.put(Routes.applicationCommands(auth.DISCORD_CLIENT_ID), {
+    console.log(
+      `SlashCommand: refreshing ${commands.length} application (/) commands.`
+    );
+    try {
+      const rest = new REST().setToken(auth.DISCORD_TOKEN);
+      rest
+        .put(Routes.applicationCommands(auth.DISCORD_CLIENT_ID), {
           body: commands,
+        })
+        .then(() => {
+          `SlashCommand: reloaded ${commands.length} application (/) commands.`;
+        })
+        .catch(console.error)
+        .finally(() => {
+          console.log("SlashCommand: finally called");
         });
-        console.log(
-          `ShalshCommand: reloaded ${commands.length} application (/) commands.`
-        );
-      } catch (error) {
-        console.error(error);
-      }
-    })();
+    } catch (error) {
+      console.error("SlashCommand: error", error);
+    }
   }
 }

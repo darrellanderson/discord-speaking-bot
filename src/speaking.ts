@@ -1,3 +1,14 @@
+import {
+  VoiceConnection,
+  VoiceConnectionStatus,
+  VoiceReceiver,
+  entersState,
+  joinVoiceChannel,
+} from "@discordjs/voice";
+import { Channel, VoiceChannel } from "discord.js";
+import { join } from "path";
+import { UserIdToName } from "./user-id-to-name";
+
 export interface ISpeakingListener {
   onSpeakingConnected(): void;
   onSpeakingStart(speaker: string): void;
@@ -18,6 +29,9 @@ export class Speaking {
   private _connected: boolean = false;
   private _disconnectTimeoutHandle: NodeJS.Timeout | undefined = undefined;
 
+  private _voiceConnection: VoiceConnection | undefined = undefined;
+  private _userIdToName: UserIdToName | undefined = undefined;
+
   // TODO discord state ...
 
   constructor(listener: ISpeakingListener) {
@@ -29,7 +43,7 @@ export class Speaking {
     return this;
   }
 
-  connect(channel: any | "unittest"): this {
+  connect(channel: Channel | "unittest"): this {
     if (this._connected) {
       throw new Error("Already connected");
     }
@@ -40,7 +54,43 @@ export class Speaking {
     }
 
     // Register discord listeners.
-    // ...
+    if (channel !== "unittest") {
+      this._userIdToName = new UserIdToName(channel.client);
+      if (!(channel instanceof VoiceChannel)) {
+        console.error("Speaking: connect: not a voice channel");
+        this._listener.onSpeakingDisconnected();
+        return this;
+      }
+      this._voiceConnection = joinVoiceChannel({
+        channelId: channel.id,
+        guildId: channel.guild.id,
+        selfDeaf: false, // necessary to get speaking events
+        selfMute: true,
+        adapterCreator: channel.guild.voiceAdapterCreator,
+      });
+      entersState(
+        this._voiceConnection,
+        VoiceConnectionStatus.Ready,
+        20e3
+      ).then(() => {
+        if (!this._voiceConnection) {
+          console.error("Speaking: VoiceConnection not ready");
+          this._listener.onSpeakingDisconnected();
+          return;
+        }
+        const receiver: VoiceReceiver = this._voiceConnection.receiver;
+        receiver.speaking.on("start", (userId) => {
+          this._userIdToName?.getAsync(userId).then((name) => {
+            this._listener.onSpeakingStart(name);
+          });
+        });
+        receiver.speaking.on("end", (userId) => {
+          this._userIdToName?.getAsync(userId).then((name) => {
+            this._listener.onSpeakingEnd(name);
+          });
+        });
+      });
+    }
 
     this._listener.onSpeakingConnected();
     return this;
@@ -63,7 +113,11 @@ export class Speaking {
     }
     this._disconnectTimeoutHandle = undefined;
 
-    // TODO release discord listeners.
+    // Release discord state.
+    if (this._voiceConnection) {
+      this._voiceConnection.destroy();
+      this._voiceConnection = undefined;
+    }
 
     this._listener.onSpeakingDisconnected();
     return this;
