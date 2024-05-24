@@ -1,7 +1,8 @@
-import { SlashCommandBuilder } from "discord.js";
+import { Client, Events, GatewayIntentBits, Interaction } from "discord.js";
 import { SlashCommand, ISlashCommandListener } from "./slash-command";
 import { ISpeakingHistoryListener, SpeakingHistory } from "./speaking-history";
 import { Speaking } from "./speaking";
+import { DISCORD_CLIENT_ID, DISCORD_TOKEN } from "../secret.json";
 
 class BotInstance implements ISpeakingHistoryListener {
   private static _channelIdToBotInstance = new Map<string, BotInstance>();
@@ -43,18 +44,41 @@ class BotInstance implements ISpeakingHistoryListener {
 }
 
 class BotSlashCommandListener implements ISlashCommandListener {
-  onSlashCommand(interaction: any) {
+  onSlashCommand(interaction: Interaction) {
     console.log("BotSlashCommandListener: onSlashCommand");
     const channel = interaction.channel;
     new BotInstance(channel);
   }
 }
 
-function main() {
-  const botSlashCommand = new SlashCommandBuilder()
-    .setName("speaking")
-    .setDescription("Log recent speakers with durations.");
-  new SlashCommand(botSlashCommand, new BotSlashCommandListener());
-}
+// ------------------------------------
 
-main();
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    // GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildVoiceStates,
+  ],
+});
+
+client.on(Events.Error, console.error);
+
+client.once(Events.ClientReady, (readyClient: Client) => {
+  console.log(`Ready! Logged in as ${readyClient.user?.tag}`);
+
+  new SlashCommand(
+    {
+      client: readyClient,
+      DISCORD_CLIENT_ID,
+      DISCORD_TOKEN,
+    },
+    {
+      name: "speaking",
+      description: "Report recent speakers with speaking durations",
+    },
+    new BotSlashCommandListener()
+  );
+});
+
+console.log("starting bot...");
+client.login(DISCORD_TOKEN);

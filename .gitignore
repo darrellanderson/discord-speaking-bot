@@ -1,3 +1,6 @@
+# Keys and such that should not be checked into source control.
+secret.json
+
 build
 yarn.lock
 

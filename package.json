@@ -1,7 +1,7 @@
 {
   "name": "discord-speaking-bot",
   "version": "1.0.0",
-  "main": "main.js",
+  "main": "bot.js",
   "repository": "git@github.com:darrellanderson/discord-speaking-bot.git",
   "author": "darrell <darrell.anderson@gmail.com>",
   "license": "Unlicense",

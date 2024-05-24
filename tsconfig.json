@@ -5,7 +5,9 @@
     "forceConsistentCasingInFileNames": true,
     "outDir": "build",
 
+    "module": "CommonJS",
     "moduleResolution": "Node",
+    "resolveJsonModule": true,
     "types": ["@types/jest", "@types/node"],
     "skipLibCheck": true,
     "declaration": true,
