@@ -7,15 +7,11 @@ class TestListener implements ISpeakingListener {
     this.events.push("connected");
   }
 
-  onSpeakingStart(speaker: string, startTimestamp: number): void {
+  onSpeakingStart(speaker: string): void {
     this.events.push(`start ${speaker}`);
   }
 
-  onSpeakingEnd(
-    speaker: string,
-    startTimestamp: number,
-    endTimestamp: number
-  ): void {
+  onSpeakingEnd(speaker: string): void {
     this.events.push(`end ${speaker}`);
   }
 

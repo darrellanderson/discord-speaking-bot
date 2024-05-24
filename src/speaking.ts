@@ -1,11 +1,7 @@
 export interface ISpeakingListener {
   onSpeakingConnected(): void;
-  onSpeakingStart(speaker: string, startTimestamp: number): void;
-  onSpeakingEnd(
-    speaker: string,
-    startTimestamp: number,
-    endTimestamp: number
-  ): void;
+  onSpeakingStart(speaker: string): void;
+  onSpeakingEnd(speaker: string): void;
   onSpeakingDisconnected(): void;
 }
 
@@ -16,7 +12,7 @@ export interface ISpeakingListener {
 export class Speaking {
   private readonly DISCONNECT_IDLE_MSECS = 3600 * 1000;
   private readonly _listener: ISpeakingListener;
-  private readonly _speakerToStartTimestamp: Map<string, number> = new Map();
+  private readonly _speaking: Set<string> = new Set<string>();
 
   private _verbose: boolean = false;
   private _connected: boolean = false;
@@ -86,43 +82,31 @@ export class Speaking {
 
   _speakingStart(speaker: string): this {
     // Ignore if already speaking (duplicate start event?).
-    let startTimestamp: number | undefined =
-      this._speakerToStartTimestamp.get(speaker);
-    if (startTimestamp !== undefined) {
+    if (this._speaking.has(speaker)) {
       return this;
     }
+    this._speaking.add(speaker);
 
     if (this._verbose) {
       console.log(`Speaking: start "${speaker}"`);
     }
 
-    // Record start time.
-    startTimestamp = Date.now();
-    this._speakerToStartTimestamp.set(speaker, startTimestamp);
-
-    // Record start time, trigger event.
-    this._listener.onSpeakingStart(speaker, startTimestamp);
+    this._listener.onSpeakingStart(speaker);
     return this;
   }
 
   _speakingEnd(speaker: string): this {
     // Ignore if not speaking (duplicate end event?).
-    const startTimestamp: number | undefined =
-      this._speakerToStartTimestamp.get(speaker);
-    if (startTimestamp === undefined) {
+    if (!this._speaking.has(speaker)) {
       return this;
     }
+    this._speaking.delete(speaker);
 
     if (this._verbose) {
       console.log(`Speaking: end "${speaker}"`);
     }
 
-    // Get end time, remove start time entry.
-    const endTimestamp: number = Date.now();
-    this._speakerToStartTimestamp.delete(speaker);
-
-    // Remove start time, trigger event.
-    this._listener.onSpeakingEnd(speaker, startTimestamp, endTimestamp);
+    this._listener.onSpeakingEnd(speaker);
     return this;
   }
 }
