@@ -6,7 +6,7 @@ import {
   GatewayIntentBits,
   Interaction,
 } from "discord.js";
-import { SlashCommand, ISlashCommandListener } from "./slash-command";
+import { SlashCommand, ISlashCommandListener } from "./slash-commands-handler";
 import { ISpeakingHistoryListener, SpeakingHistory } from "./speaking-history";
 import { Speaking } from "./speaking";
 import { DISCORD_CLIENT_ID, DISCORD_TOKEN } from "../secret.json";
