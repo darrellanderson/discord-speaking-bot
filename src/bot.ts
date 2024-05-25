@@ -4,51 +4,67 @@ import {
   CommandInteraction,
   Events,
   GatewayIntentBits,
-  Interaction,
+  InteractionResponse,
   VoiceChannel,
 } from "discord.js";
 import {
   SlashCommandsHandler,
   ISlashCommandListener,
 } from "./slash-commands-handler";
-import { ISpeakingHistoryListener, SpeakingHistory } from "./speaking-history";
+import {
+  ISpeakingHistoryListener,
+  SpeakingHistory,
+  SpeakingHistoryRecord,
+} from "./speaking-history";
 import { Speaking } from "./speaking";
 import { DISCORD_TOKEN } from "../secret.json";
+import { UserIdToName } from "./user-id-to-name";
+import { SpeakingHistorySummary } from "./speaking-history-summary";
 
 class BotInstance implements ISpeakingHistoryListener {
   private static _channelIdToBotInstance = new Map<string, BotInstance>();
   private readonly _channelId: string;
   private readonly _speakingHistory: SpeakingHistory;
   private readonly _speaking: Speaking;
+  private readonly _speakingHistorySummary: SpeakingHistorySummary;
 
   constructor(commandInteraction: CommandInteraction) {
     const channel: Channel | null = commandInteraction.channel;
     this._channelId = channel?.id || "";
     this._speakingHistory = new SpeakingHistory(this).setVerbose(true);
     this._speaking = new Speaking(this._speakingHistory).setVerbose(true);
+    this._speakingHistorySummary = new SpeakingHistorySummary(
+      new UserIdToName(commandInteraction.client)
+    );
 
     if (!channel) {
       commandInteraction.reply("No channel, aborting");
-      console.error("BotSlashCommandListener: no channel, aborting");
       return;
     }
 
     if (!(channel instanceof VoiceChannel)) {
       commandInteraction.reply("Not a voice channel, aborting");
-      console.error("BotSlashCommandListener: not a voice, aborting");
       return;
     }
+
+    commandInteraction
+      .reply("Monitoring speaking in this channel")
+      .then((value: InteractionResponse<boolean>) => {
+        if (value instanceof InteractionResponse) {
+          console.log(`message id : ${value.id}`);
+          value.edit("edited!");
+          value.edit("edited again!");
+        }
+      });
 
     // Remove any existing bot instance.
     const botInstance: BotInstance | undefined =
       BotInstance._channelIdToBotInstance.get(this._channelId);
     if (botInstance) {
-      console.log("BotInstance: closing existing bot instance");
       botInstance.close();
     }
 
     // Register this bot instance.
-    console.log("BotInstance: registering bot instance");
     BotInstance._channelIdToBotInstance.set(this._channelId, this);
 
     // Connect to the channel.
@@ -56,12 +72,14 @@ class BotInstance implements ISpeakingHistoryListener {
   }
 
   close() {
-    console.log("BotInstance: closing bot instance");
     this._speaking.disconnect();
     BotInstance._channelIdToBotInstance.delete(this._channelId);
   }
 
   onSpeakingHistoryUpdated(speakingHistory: SpeakingHistory): void {
+    const history: Array<SpeakingHistoryRecord> = speakingHistory.history();
+    const summary: string = this._speakingHistorySummary.summary(history);
+    console.log(summary);
     // TODO update summary in channel message
   }
 
@@ -72,7 +90,6 @@ class BotInstance implements ISpeakingHistoryListener {
 
 class BotSlashCommandListener implements ISlashCommandListener {
   onSlashCommand(commandInteraction: CommandInteraction) {
-    console.log("BotSlashCommandListener: onSlashCommand");
     new BotInstance(commandInteraction);
   }
 }

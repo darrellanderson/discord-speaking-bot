@@ -37,13 +37,18 @@ export class SpeakingHistory implements ISpeakingListener {
   onSpeakingConnected(): void {}
 
   onSpeakingStart(userId: string): void {
-    const startTimestamp: number | undefined =
+    let startTimestamp: number | undefined =
       this._userIdToStartTimestamp.get(userId);
-    if (startTimestamp === undefined && this._verbose) {
-      console.log(`SpeakingHistory: onSpeakingStart ${userId}`);
+    if (startTimestamp !== undefined) {
+      return; // already started, ignore
     }
-
-    this._userIdToStartTimestamp.set(userId, Date.now());
+    startTimestamp = Date.now();
+    if (this._verbose) {
+      console.log(
+        `SpeakingHistory: onSpeakingStart "${userId}" ${startTimestamp}`
+      );
+    }
+    this._userIdToStartTimestamp.set(userId, startTimestamp);
   }
 
   onSpeakingEnd(userId: string): void {
@@ -51,17 +56,18 @@ export class SpeakingHistory implements ISpeakingListener {
     const startTimestamp: number | undefined =
       this._userIdToStartTimestamp.get(userId);
     if (startTimestamp === undefined) {
-      return;
+      return; // no prior start, ignore
     }
     this._userIdToStartTimestamp.delete(userId);
+    const endTimestamp = Date.now();
     if (this._verbose) {
-      console.log(`SpeakingHistory: onSpeakingEnd ${userId}`);
+      console.log(`SpeakingHistory: onSpeakingEnd "${userId}" ${endTimestamp}`);
     }
 
     this._speakingRecords.push({
       userId,
       startTimestamp,
-      endTimestamp: Date.now(),
+      endTimestamp,
     });
 
     this._listener.onSpeakingHistoryUpdated(this);

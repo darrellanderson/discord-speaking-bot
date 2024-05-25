@@ -108,7 +108,7 @@ export class SlashCommandsHandler {
         }
         if (this._verbose) {
           console.log(
-            `SlashCommandsHandler._listenForSlashCommands: ${commandInteraction.commandName}`
+            `SlashCommandsHandler._listenForSlashCommands: got /${commandInteraction.commandName}`
           );
         }
         this._listener.onSlashCommand(commandInteraction);
