@@ -22,6 +22,8 @@ import { UserIdToName } from "./user-id-to-name";
 import { SpeakingHistorySummary } from "./speaking-history-summary";
 
 class BotInstance implements ISpeakingHistoryListener {
+  private static IDLE_TIMEOUT_MS = 1000 * 3600;
+
   private static _channelIdToBotInstance = new Map<string, BotInstance>();
 
   private readonly _channel: Channel;
@@ -29,6 +31,15 @@ class BotInstance implements ISpeakingHistoryListener {
   private readonly _speakingHistory: SpeakingHistory;
   private readonly _speaking: Speaking;
   private readonly _speakingHistorySummary: SpeakingHistorySummary;
+
+  private readonly _idleDisconnect = () => {
+    this._response?.edit("Idle too long, disconnecting");
+    this.close();
+  };
+
+  private _response: InteractionResponse<boolean> | undefined;
+  private _updateHandle: NodeJS.Timeout | undefined;
+  private _idleCheckHandle: NodeJS.Timeout | undefined;
 
   constructor(commandInteraction: CommandInteraction) {
     if (!commandInteraction.channel) {
@@ -39,7 +50,7 @@ class BotInstance implements ISpeakingHistoryListener {
     this._speaking = new Speaking(this._speakingHistory).setVerbose(true);
     this._speakingHistorySummary = new SpeakingHistorySummary(
       new UserIdToName(commandInteraction.client)
-    );
+    ).setVerbose(true);
 
     this._channel = commandInteraction.channel;
     if (!this._channel) {
@@ -56,9 +67,8 @@ class BotInstance implements ISpeakingHistoryListener {
       .reply("Monitoring speaking in this channel")
       .then((value: InteractionResponse<boolean>) => {
         if (value instanceof InteractionResponse) {
-          console.log(`message id : ${value.id}`);
-          value.edit("edited!");
-          value.edit("edited again!");
+          this._response = value;
+          this.updateResponse();
         }
       });
 
@@ -74,6 +84,11 @@ class BotInstance implements ISpeakingHistoryListener {
 
     // Connect to the channel.
     this._speaking.connect(this._channel);
+
+    this._idleCheckHandle = setTimeout(
+      this._idleDisconnect,
+      BotInstance.IDLE_TIMEOUT_MS
+    );
   }
 
   close() {
@@ -82,14 +97,38 @@ class BotInstance implements ISpeakingHistoryListener {
   }
 
   onSpeakingHistoryUpdated(speakingHistory: SpeakingHistory): void {
-    const history: Array<SpeakingHistoryRecord> = speakingHistory.history();
-    const summary: string = this._speakingHistorySummary.summary(history);
-    console.log(summary);
-    // TODO update summary in channel message
+    if (this._updateHandle) {
+      return; // already pending
+    }
+
+    // Rate limit updaetes, bots only get so many edits per minute.
+    this._updateHandle = setTimeout(() => {
+      this._updateHandle = undefined;
+      this.updateResponse();
+    }, 1000);
   }
 
   onSpeakingHistoryDisconnected(): void {
     this.close();
+  }
+
+  updateResponse() {
+    const history: Array<SpeakingHistoryRecord> =
+      this._speakingHistory.history();
+    this._speakingHistorySummary
+      .summaryAsync(history)
+      .then((summary: string) => {
+        if (this._response) {
+          const id: string = this._response.id;
+          this._response.edit(`Message id: ${id}\n${summary}`);
+        }
+      });
+
+    clearTimeout(this._idleCheckHandle);
+    this._idleCheckHandle = setTimeout(
+      this._idleDisconnect,
+      BotInstance.IDLE_TIMEOUT_MS
+    );
   }
 }
 

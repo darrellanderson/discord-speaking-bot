@@ -25,8 +25,6 @@ export class Speaking {
 
   private _verbose: boolean = false;
   private _connected: boolean = false;
-  private _disconnectTimeoutHandle: NodeJS.Timeout | undefined = undefined;
-
   private _voiceConnection: VoiceConnection | undefined = undefined;
 
   constructor(listener: ISpeakingListener) {
@@ -48,8 +46,6 @@ export class Speaking {
       console.log(`Speaking: connect`);
     }
 
-    this._resetDisconnectTimeout();
-
     // Register discord listeners.
     this._voiceConnection = joinVoiceChannel({
       channelId: channel.id,
@@ -68,14 +64,11 @@ export class Speaking {
         const receiver: VoiceReceiver = this._voiceConnection.receiver;
         receiver.speaking.on("start", (userId) => {
           this._listener.onSpeakingStart(userId);
-          this._resetDisconnectTimeout();
         });
         receiver.speaking.on("end", (userId) => {
           this._listener.onSpeakingEnd(userId);
-          this._resetDisconnectTimeout();
         });
         this._listener.onSpeakingConnected();
-        this._resetDisconnectTimeout();
       }
     );
     return this;
@@ -92,12 +85,6 @@ export class Speaking {
       console.log(`Speaking: disconnect`);
     }
 
-    // Clear timeout handle (signals was connnected).
-    if (this._disconnectTimeoutHandle) {
-      clearTimeout(this._disconnectTimeoutHandle);
-    }
-    this._disconnectTimeoutHandle = undefined;
-
     // Release discord state.
     if (this._voiceConnection) {
       this._voiceConnection.destroy();
@@ -105,17 +92,6 @@ export class Speaking {
     }
 
     this._listener.onSpeakingDisconnected();
-    return this;
-  }
-
-  _resetDisconnectTimeout(): this {
-    if (this._disconnectTimeoutHandle) {
-      clearTimeout(this._disconnectTimeoutHandle);
-      this._disconnectTimeoutHandle = undefined;
-    }
-    this._disconnectTimeoutHandle = setTimeout(() => {
-      this.disconnect();
-    }, this.DISCONNECT_IDLE_MSECS);
     return this;
   }
 

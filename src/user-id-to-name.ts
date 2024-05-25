@@ -30,8 +30,9 @@ export class UserIdToName {
       this._client.users
         .fetch(userId)
         .then((user) => {
-          this._userIdToName.set(userId, user.username);
-          resolve(user.username);
+          const name: string = user.displayName;
+          this._userIdToName.set(userId, name);
+          resolve(name);
         })
         .catch((error) => {
           reject(error);
