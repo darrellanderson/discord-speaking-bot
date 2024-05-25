@@ -13,60 +13,95 @@ import {
  * Called each time the slash command is invoked, with the slash message.
  */
 export interface ISlashCommandListener {
+  /**
+   * Called when a discord user invokes the slash command.
+   *
+   * @param commandInteraction the slash command message
+   */
   onSlashCommand(commandInteraction: CommandInteraction): void;
 }
 
-export class SlashCommand {
-  constructor(
-    auth: { client: Client; DISCORD_CLIENT_ID: string; DISCORD_TOKEN: string },
-    command: { name: string; description: string },
-    listener: ISlashCommandListener
-  ) {
-    const commands: Array<RESTPostAPIChatInputApplicationCommandsJSONBody> = [
-      new SlashCommandBuilder()
-        .setName(command.name)
-        .setDescription(command.description)
-        .toJSON(),
-    ];
+export class SlashCommandsHandler {
+  private readonly _client: Client;
+  private readonly _listener: ISlashCommandListener;
+  private readonly _commandNameToDescription: Map<string, string> = new Map();
 
-    auth.client.on(
+  private _verbose: boolean = false;
+
+  constructor(client: Client, listener: ISlashCommandListener) {
+    this._client = client;
+    this._listener = listener;
+  }
+
+  addCommand(name: string, description: string): this {
+    if (this._verbose) {
+      console.log(`SlashCommandsHandler.addCommand: ${name} ${description}`);
+    }
+    this._commandNameToDescription.set(name, description);
+    return this;
+  }
+
+  _refreshDiscordSlashCommands(): void {
+    const token: string | null = this._client.token;
+    const clientId: string | undefined = this._client.application?.id;
+
+    if (!token) {
+      throw new Error("SlashCommandsHandler: missing token");
+    }
+    if (!clientId) {
+      throw new Error("SlashCommandsHandler: missing token");
+    }
+
+    const commands: Array<RESTPostAPIChatInputApplicationCommandsJSONBody> = [];
+    this._commandNameToDescription.forEach((description, name) => {
+      commands.push(
+        new SlashCommandBuilder()
+          .setName(name)
+          .setDescription(description)
+          .toJSON()
+      );
+    });
+
+    if (this._verbose) {
+      console.log(
+        `SlashCommandsHandler._refreshDiscordSlashCommands: |${commands.length}|`
+      );
+    }
+    const rest = new REST().setToken(token);
+    rest
+      .put(Routes.applicationCommands(clientId), {
+        body: commands,
+      })
+      .then(() => {
+        if (this._verbose) {
+          console.log(
+            `SlashCommand: reloaded ${commands.length} application (/) commands.`
+          );
+        }
+      });
+  }
+
+  _listenForSlashCommands(): void {
+    this._client.on(
       Events.InteractionCreate,
-      async (interaction: Interaction) => {
-        console.log(`InteractionCreate: ${interaction.id}`);
+      (interaction: Interaction): void => {
         if (!interaction.isCommand()) {
           return;
         }
         const commandInteraction: CommandInteraction =
           interaction as CommandInteraction;
-        if (commandInteraction.commandName !== command.name) {
+        if (
+          !this._commandNameToDescription.has(commandInteraction.commandName)
+        ) {
           return;
         }
-        console.log(
-          `SlashCommand InteractionCreate: ${commandInteraction.commandName}`
-        );
-        commandInteraction.reply("Acknowledged");
-        listener.onSlashCommand(commandInteraction);
+        if (this._verbose) {
+          console.log(
+            `SlashCommandsHandler._listenForSlashCommands: ${commandInteraction.commandName}`
+          );
+        }
+        this._listener.onSlashCommand(commandInteraction);
       }
     );
-
-    console.log(
-      `SlashCommand: refreshing ${commands.length} application (/) commands.`
-    );
-    try {
-      const rest = new REST().setToken(auth.DISCORD_TOKEN);
-      rest
-        .put(Routes.applicationCommands(auth.DISCORD_CLIENT_ID), {
-          body: commands,
-        })
-        .then(() => {
-          `SlashCommand: reloaded ${commands.length} application (/) commands.`;
-        })
-        .catch(console.error)
-        .finally(() => {
-          console.log("SlashCommand: finally called");
-        });
-    } catch (error) {
-      console.error("SlashCommand: error", error);
-    }
   }
 }
