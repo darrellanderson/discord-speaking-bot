@@ -40,7 +40,7 @@ export class SlashCommandsHandler {
 
   addCommand(name: string, description: string): this {
     if (this._verbose) {
-      console.log(`SlashCommandsHandler.addCommand: ${name} ${description}`);
+      console.log(`SlashCommandsHandler.addCommand: "/${name}" ${description}`);
     }
     this._commandNameToDescription.set(name, description);
     return this;

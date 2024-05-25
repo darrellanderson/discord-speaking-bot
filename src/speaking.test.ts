@@ -27,21 +27,16 @@ it("constructor", () => {
 it("start/end", () => {
   const listener = new TestListener();
   new Speaking(listener)
-    .connect("unittest")
     ._speakingStart("alice")
     ._speakingStart("alice") // duplicate start
     ._speakingEnd("alice")
     ._speakingStart("bob")
     ._speakingEnd("bob")
-    ._speakingEnd("bob") // duplicate end
-    .disconnect()
-    .disconnect(); // duplicate disconnect
+    ._speakingEnd("bob"); // duplicate end
   expect(listener.events).toEqual([
-    "connected",
     "start alice",
     "end alice",
     "start bob",
     "end bob",
-    "disconnected",
   ]);
 });

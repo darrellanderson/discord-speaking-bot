@@ -5,6 +5,7 @@ import {
   Events,
   GatewayIntentBits,
   Interaction,
+  VoiceChannel,
 } from "discord.js";
 import {
   SlashCommandsHandler,
@@ -29,6 +30,12 @@ class BotInstance implements ISpeakingHistoryListener {
     if (!channel) {
       commandInteraction.reply("No channel, aborting");
       console.error("BotSlashCommandListener: no channel, aborting");
+      return;
+    }
+
+    if (!(channel instanceof VoiceChannel)) {
+      commandInteraction.reply("Not a voice channel, aborting");
+      console.error("BotSlashCommandListener: not a voice, aborting");
       return;
     }
 
