@@ -1,5 +1,6 @@
 import {
   Client,
+  CommandInteraction,
   Events,
   Interaction,
   REST,
@@ -12,7 +13,7 @@ import {
  * Called each time the slash command is invoked, with the slash message.
  */
 export interface ISlashCommandListener {
-  onSlashCommand(interaction: Interaction): void;
+  onSlashCommand(commandInteraction: CommandInteraction): void;
 }
 
 export class SlashCommand {
@@ -35,14 +36,16 @@ export class SlashCommand {
         if (!interaction.isCommand()) {
           return;
         }
-        if (interaction.commandName !== command.name) {
+        const commandInteraction: CommandInteraction =
+          interaction as CommandInteraction;
+        if (commandInteraction.commandName !== command.name) {
           return;
         }
         console.log(
-          `SlashCommand InteractionCreate: ${interaction.commandName}`
+          `SlashCommand InteractionCreate: ${commandInteraction.commandName}`
         );
-        interaction.reply("Acknowledged");
-        listener.onSlashCommand(interaction);
+        commandInteraction.reply("Acknowledged");
+        listener.onSlashCommand(commandInteraction);
       }
     );
 

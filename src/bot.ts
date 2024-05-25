@@ -1,6 +1,7 @@
 import {
   Channel,
   Client,
+  CommandInteraction,
   Events,
   GatewayIntentBits,
   Interaction,
@@ -16,10 +17,17 @@ class BotInstance implements ISpeakingHistoryListener {
   private readonly _speakingHistory: SpeakingHistory;
   private readonly _speaking: Speaking;
 
-  constructor(channel: Channel) {
-    this._channelId = channel.id;
+  constructor(commandInteraction: CommandInteraction) {
+    const channel: Channel | null = commandInteraction.channel;
+    this._channelId = channel?.id || "";
     this._speakingHistory = new SpeakingHistory(this).setVerbose(true);
     this._speaking = new Speaking(this._speakingHistory).setVerbose(true);
+
+    if (!channel) {
+      commandInteraction.reply("No channel, aborting");
+      console.error("BotSlashCommandListener: no channel, aborting");
+      return;
+    }
 
     // Remove any existing bot instance.
     const botInstance: BotInstance | undefined =
@@ -55,14 +63,9 @@ class BotInstance implements ISpeakingHistoryListener {
 }
 
 class BotSlashCommandListener implements ISlashCommandListener {
-  onSlashCommand(interaction: Interaction) {
+  onSlashCommand(commandInteraction: CommandInteraction) {
     console.log("BotSlashCommandListener: onSlashCommand");
-    const channel: Channel | null = interaction.channel;
-    if (!channel) {
-      console.error("BotSlashCommandListener: no channel, aborting");
-      return;
-    }
-    new BotInstance(channel);
+    new BotInstance(commandInteraction);
   }
 }
 
