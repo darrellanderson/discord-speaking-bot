@@ -11,8 +11,8 @@ import { UserIdToName } from "./user-id-to-name";
 
 export interface ISpeakingListener {
   onSpeakingConnected(): void;
-  onSpeakingStart(speaker: string): void;
-  onSpeakingEnd(speaker: string): void;
+  onSpeakingStart(userId: string): void;
+  onSpeakingEnd(userId: string): void;
   onSpeakingDisconnected(): void;
 }
 
@@ -30,7 +30,6 @@ export class Speaking {
   private _disconnectTimeoutHandle: NodeJS.Timeout | undefined = undefined;
 
   private _voiceConnection: VoiceConnection | undefined = undefined;
-  private _userIdToName: UserIdToName | undefined = undefined;
 
   // TODO discord state ...
 
@@ -55,7 +54,6 @@ export class Speaking {
 
     // Register discord listeners.
     if (channel !== "unittest") {
-      this._userIdToName = new UserIdToName(channel.client);
       if (!(channel instanceof VoiceChannel)) {
         console.error("Speaking: connect: not a voice channel");
         this._listener.onSpeakingDisconnected();
@@ -80,14 +78,10 @@ export class Speaking {
         }
         const receiver: VoiceReceiver = this._voiceConnection.receiver;
         receiver.speaking.on("start", (userId) => {
-          this._userIdToName?.getAsync(userId).then((name) => {
-            this._listener.onSpeakingStart(name);
-          });
+          this._listener.onSpeakingStart(userId);
         });
         receiver.speaking.on("end", (userId) => {
-          this._userIdToName?.getAsync(userId).then((name) => {
-            this._listener.onSpeakingEnd(name);
-          });
+          this._listener.onSpeakingEnd(userId);
         });
       });
     }

@@ -5,8 +5,8 @@ export interface ISpeakingHistoryListener {
   onSpeakingHistoryDisconnected(): void;
 }
 
-type SpeakingRecord = {
-  speaker: string;
+export type SpeakingHistoryRecord = {
+  userId: string;
   startTimestamp: number;
   endTimestamp: number;
 };
@@ -15,12 +15,10 @@ export class SpeakingHistory implements ISpeakingListener {
   private readonly EVICT_MSECS = 5 * 60 * 1000;
 
   private readonly _listener: ISpeakingHistoryListener;
-  private readonly _speakerToStartTimestamp: Map<string, number> = new Map();
-  private readonly _speakingRecords: Array<SpeakingRecord> = [];
+  private readonly _userIdToStartTimestamp: Map<string, number> = new Map();
+  private readonly _speakingRecords: Array<SpeakingHistoryRecord> = [];
 
   private _verbose: boolean = false;
-
-  private _characterBudget: number = 2000; // Discord message limit 2000
 
   constructor(listener: ISpeakingHistoryListener) {
     this._listener = listener;
@@ -31,70 +29,37 @@ export class SpeakingHistory implements ISpeakingListener {
     return this;
   }
 
-  setCharacterBudget(characterBudget: number): this {
-    this._characterBudget = characterBudget;
-    return this;
-  }
-
-  summary(): string {
+  history(): Array<SpeakingHistoryRecord> {
     this._evictOldRecords();
-
-    const lines: string[] = this._speakingRecords
-      .filter((record) => record.endTimestamp >= 0)
-      .map((record): string => {
-        const timestamp: string = (record.endTimestamp / 1000).toFixed(1);
-        const duration: string = (
-          (record.endTimestamp - record.startTimestamp) /
-          1000
-        ).toFixed(1);
-        return `${timestamp} ${record.speaker} ${duration}`;
-      });
-
-    // Discord messages are limited to 2000 characters.
-    const result: Array<string> = [];
-    let budget = this._characterBudget;
-    while (lines.length > 0) {
-      const line: string | undefined = lines.pop(); // newest to oldest
-      if (!line) {
-        break;
-      }
-      const cost = line.length + 1; // +1 for newline
-      if (cost > budget) {
-        break;
-      }
-      result.push(line);
-      budget -= cost;
-    }
-
-    return result.join("\n");
+    return [...this._speakingRecords];
   }
 
   onSpeakingConnected(): void {}
 
-  onSpeakingStart(speaker: string): void {
+  onSpeakingStart(userId: string): void {
     const startTimestamp: number | undefined =
-      this._speakerToStartTimestamp.get(speaker);
+      this._userIdToStartTimestamp.get(userId);
     if (startTimestamp === undefined && this._verbose) {
-      console.log(`SpeakingHistory: onSpeakingStart ${speaker}`);
+      console.log(`SpeakingHistory: onSpeakingStart ${userId}`);
     }
 
-    this._speakerToStartTimestamp.set(speaker, Date.now());
+    this._userIdToStartTimestamp.set(userId, Date.now());
   }
 
-  onSpeakingEnd(speaker: string): void {
+  onSpeakingEnd(userId: string): void {
     this._evictOldRecords();
     const startTimestamp: number | undefined =
-      this._speakerToStartTimestamp.get(speaker);
+      this._userIdToStartTimestamp.get(userId);
     if (startTimestamp === undefined) {
       return;
     }
-    this._speakerToStartTimestamp.delete(speaker);
+    this._userIdToStartTimestamp.delete(userId);
     if (this._verbose) {
-      console.log(`SpeakingHistory: onSpeakingEnd ${speaker}`);
+      console.log(`SpeakingHistory: onSpeakingEnd ${userId}`);
     }
 
     this._speakingRecords.push({
-      speaker: speaker,
+      userId,
       startTimestamp,
       endTimestamp: Date.now(),
     });
@@ -106,9 +71,10 @@ export class SpeakingHistory implements ISpeakingListener {
     this._listener.onSpeakingHistoryDisconnected();
   }
 
-  _evictOldRecords(now: number = Date.now()): void {
+  _evictOldRecords(): void {
+    const now: number = Date.now();
     this._speakingRecords.forEach((record) => {
-      const age = now - record.endTimestamp;
+      const age: number = now - record.endTimestamp;
       if (age > this.EVICT_MSECS) {
         this._speakingRecords.splice(this._speakingRecords.indexOf(record), 1);
       }

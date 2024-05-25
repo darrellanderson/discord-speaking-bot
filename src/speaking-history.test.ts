@@ -10,16 +10,14 @@ it("constructor", () => {
 });
 
 it("summary", () => {
-  const history = new SpeakingHistory(new TestListener());
-  history.onSpeakingStart("alice");
-  history.onSpeakingStart("bob");
-  history.onSpeakingEnd("bob");
-  history.onSpeakingEnd("alice");
-  history.onSpeakingEnd("charlie");
-  history.onSpeakingStart("dennis");
-  const summary = history.summary();
+  const speakingHistory = new SpeakingHistory(new TestListener());
+  speakingHistory.onSpeakingStart("alice");
+  speakingHistory.onSpeakingStart("bob");
+  speakingHistory.onSpeakingEnd("bob");
+  speakingHistory.onSpeakingEnd("alice");
+  speakingHistory.onSpeakingEnd("charlie"); // not started, ignored
+  speakingHistory.onSpeakingStart("dennis"); // no end, excluded
+  const history = speakingHistory.history().map((record) => record.userId);
   const timestamp = (Date.now() / 1000).toFixed(1);
-  expect(summary).toEqual(
-    [`${timestamp} alice 0.0`, `${timestamp} bob 0.0`].join("\n")
-  );
+  expect(history).toEqual(["bob", "alice"]); // in order
 });

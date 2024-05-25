@@ -33,11 +33,22 @@ export class SlashCommandsHandler {
     this._listener = listener;
   }
 
+  setVerbose(verbose: boolean): this {
+    this._verbose = verbose;
+    return this;
+  }
+
   addCommand(name: string, description: string): this {
     if (this._verbose) {
       console.log(`SlashCommandsHandler.addCommand: ${name} ${description}`);
     }
     this._commandNameToDescription.set(name, description);
+    return this;
+  }
+
+  apply(): this {
+    this._refreshDiscordSlashCommands();
+    this._listenForSlashCommands();
     return this;
   }
 
@@ -75,7 +86,7 @@ export class SlashCommandsHandler {
       .then(() => {
         if (this._verbose) {
           console.log(
-            `SlashCommand: reloaded ${commands.length} application (/) commands.`
+            `SlashCommandsHandler._refreshDiscordSlashCommands: success`
           );
         }
       });
