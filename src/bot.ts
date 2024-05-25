@@ -23,26 +23,31 @@ import { SpeakingHistorySummary } from "./speaking-history-summary";
 
 class BotInstance implements ISpeakingHistoryListener {
   private static _channelIdToBotInstance = new Map<string, BotInstance>();
+
+  private readonly _channel: Channel;
   private readonly _channelId: string;
   private readonly _speakingHistory: SpeakingHistory;
   private readonly _speaking: Speaking;
   private readonly _speakingHistorySummary: SpeakingHistorySummary;
 
   constructor(commandInteraction: CommandInteraction) {
-    const channel: Channel | null = commandInteraction.channel;
-    this._channelId = channel?.id || "";
+    if (!commandInteraction.channel) {
+      throw new Error("No channel, aborting");
+    }
+    this._channelId = commandInteraction.channel.id;
     this._speakingHistory = new SpeakingHistory(this).setVerbose(true);
     this._speaking = new Speaking(this._speakingHistory).setVerbose(true);
     this._speakingHistorySummary = new SpeakingHistorySummary(
       new UserIdToName(commandInteraction.client)
     );
 
-    if (!channel) {
+    this._channel = commandInteraction.channel;
+    if (!this._channel) {
       commandInteraction.reply("No channel, aborting");
       return;
     }
 
-    if (!(channel instanceof VoiceChannel)) {
+    if (!(this._channel instanceof VoiceChannel)) {
       commandInteraction.reply("Not a voice channel, aborting");
       return;
     }
@@ -68,12 +73,12 @@ class BotInstance implements ISpeakingHistoryListener {
     BotInstance._channelIdToBotInstance.set(this._channelId, this);
 
     // Connect to the channel.
-    this._speaking.connect(channel);
+    this._speaking.connect(this._channel);
   }
 
   close() {
     this._speaking.disconnect();
-    BotInstance._channelIdToBotInstance.delete(this._channelId);
+    BotInstance._channelIdToBotInstance.delete(this._channel.id);
   }
 
   onSpeakingHistoryUpdated(speakingHistory: SpeakingHistory): void {
