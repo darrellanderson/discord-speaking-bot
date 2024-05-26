@@ -6,7 +6,9 @@ import {
   GatewayIntentBits,
   InteractionResponse,
   VoiceChannel,
+  WebhookCreateOptions,
 } from "discord.js";
+import { publicIpv4 } from "public-ip";
 import {
   SlashCommandsHandler,
   ISlashCommandListener,
@@ -62,6 +64,23 @@ class BotInstance implements ISpeakingHistoryListener {
       commandInteraction.reply("Not a voice channel, aborting");
       return;
     }
+
+    /*
+    const messageId: string = "1244133782643150878";
+    this._channel.messages.fetch(messageId).then((message) => {
+      message.edit("XXX EDITED");
+    });
+*/
+
+    /*
+    const options: WebhookCreateOptions = {
+      channel: this._channel,
+      name: "test-webhook",
+    };
+    this._channel.createWebhook(options).then((webhook) => {
+      console.log(`webhook: ${webhook.id} ${webhook.token}`);
+    });
+*/
 
     commandInteraction
       .reply("Monitoring speaking in this channel")
@@ -142,8 +161,9 @@ class BotSlashCommandListener implements ISlashCommandListener {
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    // GatewayIntentBits.MessageContent,
+    //GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildWebhooks,
   ],
 });
 
@@ -160,3 +180,7 @@ client.once(Events.ClientReady, (readyClient: Client) => {
 
 console.log("starting bot...");
 client.login(DISCORD_TOKEN);
+
+publicIpv4().then((ip: string) => {
+  console.log(`public IP: ${ip}`);
+});
