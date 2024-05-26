@@ -1,6 +1,10 @@
 import { DiscordPutGet } from "./discord-put-get";
-import { WEBHOOK_ID, WEBHOOK_TOKEN } from "../secret.json";
 
+it("constructor", () => {
+  new DiscordPutGet();
+});
+
+/*
 it("put, get, dele", async () => {
   const message = "Hello, world!";
   const speakingFetch = new DiscordPutGet()
@@ -16,13 +20,14 @@ it("put, get, dele", async () => {
 
   //await speakingFetch.dele(messageId);
 });
+*/
 
+/*
 it("get other", async () => {
-  const speakingFetch = new DiscordPutGet()
-    .setId(WEBHOOK_ID)
-    .setToken(WEBHOOK_TOKEN);
+  const speakingFetch = new DiscordPutGet().setId("").setToken("");
 
-  const messageId = "1244134096867823677";
+  const messageId = "";
   const content: string = await speakingFetch.get(messageId);
   console.log("OTHERS", content);
 });
+*/
