@@ -1,5 +1,5 @@
 import { UserIdToName } from "./user-id-to-name";
-import { SpeakingHistoryRecord } from "./speaking-history";
+import { SpeakingRecord } from "./speaking-history";
 
 export class SpeakingHistorySummary {
   private readonly _userIdToName: UserIdToName;
@@ -20,7 +20,7 @@ export class SpeakingHistorySummary {
     return this;
   }
 
-  summaryAsync(history: Array<SpeakingHistoryRecord>): Promise<string> {
+  summaryAsync(history: Array<SpeakingRecord>): Promise<string> {
     // Make sure we have all the names before we summarize.
     const userIds: Set<string> = new Set<string>();
     for (const record of history) {
@@ -39,18 +39,19 @@ export class SpeakingHistorySummary {
     });
   }
 
-  summary(history: Array<SpeakingHistoryRecord>): string {
+  summary(history: Array<SpeakingRecord>): string {
     let budget = this._characterBudget;
     const lines: Array<string> = [];
     while (history.length > 0) {
-      const record: SpeakingHistoryRecord | undefined = history.pop();
+      const record: SpeakingRecord | undefined = history.pop();
       if (!record) {
         break;
       }
       const timestamp: string = (record.endTimestamp / 1000).toFixed(1);
       const durationSecs: number =
         (record.endTimestamp - record.startTimestamp) / 1000;
-      const user: string = this._userIdToName.get(record.userId) ?? "<pending>";
+      let user: string = this._userIdToName.get(record.userId) ?? "<pending>";
+      user = user.replace(/ /g, "_"); // replace spaces with underscores
       const line: string = `${timestamp} ${user} ${durationSecs.toFixed(1)}\n`;
       if (line.length > budget) {
         break;

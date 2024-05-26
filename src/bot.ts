@@ -14,7 +14,7 @@ import {
 import {
   ISpeakingHistoryListener,
   SpeakingHistory,
-  SpeakingHistoryRecord,
+  SpeakingRecord,
 } from "./speaking-history";
 import { Speaking } from "./speaking";
 import { DISCORD_TOKEN } from "../secret.json";
@@ -113,8 +113,7 @@ class BotInstance implements ISpeakingHistoryListener {
   }
 
   updateResponse() {
-    const history: Array<SpeakingHistoryRecord> =
-      this._speakingHistory.history();
+    const history: Array<SpeakingRecord> = this._speakingHistory.history();
     this._speakingHistorySummary
       .summaryAsync(history)
       .then((summary: string) => {

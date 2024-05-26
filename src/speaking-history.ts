@@ -5,7 +5,7 @@ export interface ISpeakingHistoryListener {
   onSpeakingHistoryDisconnected(): void;
 }
 
-export type SpeakingHistoryRecord = {
+export type SpeakingRecord = {
   userId: string;
   startTimestamp: number;
   endTimestamp: number;
@@ -16,7 +16,7 @@ export class SpeakingHistory implements ISpeakingListener {
 
   private readonly _listener: ISpeakingHistoryListener;
   private readonly _userIdToStartTimestamp: Map<string, number> = new Map();
-  private readonly _speakingRecords: Array<SpeakingHistoryRecord> = [];
+  private readonly _speakingRecords: Array<SpeakingRecord> = [];
 
   private _verbose: boolean = false;
 
@@ -29,7 +29,7 @@ export class SpeakingHistory implements ISpeakingListener {
     return this;
   }
 
-  history(): Array<SpeakingHistoryRecord> {
+  history(): Array<SpeakingRecord> {
     this._evictOldRecords();
     return [...this._speakingRecords];
   }
