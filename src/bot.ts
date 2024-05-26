@@ -269,9 +269,11 @@ class BotInstance implements ISpeakingHistoryListener {
       });
       const b64: string = Buffer.from(json).toString("base64url");
 
-      const content: string = ["TTPG access token:", "```" + b64 + "```"].join(
-        "\n"
-      );
+      const content: string = [
+        "TTPG access token:",
+        "```" + b64 + "```",
+        "This restricted access token lets TTPG read the speaking history message.",
+      ].join("\n");
 
       if (!this._commandInteractionReply) {
         reject("No command interaction reply");
