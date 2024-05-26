@@ -3,20 +3,12 @@ import { ISpeakingListener, Speaking } from "./speaking";
 class TestListener implements ISpeakingListener {
   public readonly events: Array<string> = [];
 
-  onSpeakingConnected(): void {
-    this.events.push("connected");
-  }
-
   onSpeakingStart(speaker: string): void {
     this.events.push(`start ${speaker}`);
   }
 
   onSpeakingEnd(speaker: string): void {
     this.events.push(`end ${speaker}`);
-  }
-
-  onSpeakingDisconnected() {
-    this.events.push("disconnected");
   }
 }
 

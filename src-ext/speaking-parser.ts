@@ -7,7 +7,6 @@ export type SpeakingRecord = {
 export class SpeakingParser {
   /**
    * Extract speaking records from summary.
-   * Accounts for message having a "Message id: 1234" prefix.
    * Lines are "timestamp userId duration", userId does not have spaces.
    *
    * @param summary
@@ -17,9 +16,6 @@ export class SpeakingParser {
     const records: Array<SpeakingRecord> = [];
     const lines: Array<string> = summary.split("\n");
     for (const line of lines) {
-      if (line.startsWith("Message id:")) {
-        continue;
-      }
       const parts: Array<string> = line.split(" ");
       if (parts.length !== 3) {
         continue;

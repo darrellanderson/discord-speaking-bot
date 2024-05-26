@@ -27,16 +27,11 @@ export class UserIdToName {
         resolve(name);
         return;
       }
-      this._client.users
-        .fetch(userId)
-        .then((user) => {
-          const name: string = user.displayName;
-          this._userIdToName.set(userId, name);
-          resolve(name);
-        })
-        .catch((error) => {
-          reject(error);
-        });
+      this._client.users.fetch(userId).then((user) => {
+        const name: string = user.displayName;
+        this._userIdToName.set(userId, name);
+        resolve(name);
+      }, reject);
     });
   }
 }

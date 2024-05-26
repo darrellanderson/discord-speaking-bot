@@ -4,11 +4,12 @@ import {
   CommandInteraction,
   Events,
   GatewayIntentBits,
-  InteractionResponse,
+  Message,
   VoiceChannel,
+  Webhook,
   WebhookCreateOptions,
 } from "discord.js";
-import { publicIpv4 } from "public-ip";
+
 import {
   SlashCommandsHandler,
   ISlashCommandListener,
@@ -24,7 +25,7 @@ import { UserIdToName } from "./user-id-to-name";
 import { SpeakingHistorySummary } from "./speaking-history-summary";
 
 class BotInstance implements ISpeakingHistoryListener {
-  private static IDLE_TIMEOUT_MS = 1000 * 3600;
+  private static IDLE_TIMEOUT_MS = 1000 * 60; //3600;
 
   private static _channelIdToBotInstance = new Map<string, BotInstance>();
 
@@ -35,11 +36,12 @@ class BotInstance implements ISpeakingHistoryListener {
   private readonly _speakingHistorySummary: SpeakingHistorySummary;
 
   private readonly _idleDisconnect = () => {
-    this._response?.edit("Idle too long, disconnecting");
+    this.editWebhookMessage("Idle too long, disconnecting");
     this.close();
   };
 
-  private _response: InteractionResponse<boolean> | undefined;
+  private _webhook: Webhook | undefined;
+  private _webhookMessage: Message | undefined;
   private _updateHandle: NodeJS.Timeout | undefined;
   private _idleCheckHandle: NodeJS.Timeout | undefined;
 
@@ -54,6 +56,11 @@ class BotInstance implements ISpeakingHistoryListener {
       new UserIdToName(commandInteraction.client)
     ).setVerbose(true);
 
+    const reject = (error: string) => {
+      console.error(`BotInstance error: ${error}`);
+      this.close();
+    };
+
     this._channel = commandInteraction.channel;
     if (!this._channel) {
       commandInteraction.reply("No channel, aborting");
@@ -65,31 +72,18 @@ class BotInstance implements ISpeakingHistoryListener {
       return;
     }
 
-    /*
-    const messageId: string = "1244133782643150878";
-    this._channel.messages.fetch(messageId).then((message) => {
-      message.edit("XXX EDITED");
-    });
-*/
-
-    /*
     const options: WebhookCreateOptions = {
       channel: this._channel,
       name: "test-webhook",
     };
     this._channel.createWebhook(options).then((webhook) => {
-      console.log(`webhook: ${webhook.id} ${webhook.token}`);
-    });
-*/
-
-    commandInteraction
-      .reply("Monitoring speaking in this channel")
-      .then((value: InteractionResponse<boolean>) => {
-        if (value instanceof InteractionResponse) {
-          this._response = value;
-          this.updateResponse();
-        }
-      });
+      console.log(`BotInstance createWebhook: ${webhook.id} ${webhook.token}`);
+      this._webhook = webhook;
+      this._webhook.send("Hello, world!").then((message) => {
+        this._webhookMessage = message;
+        this.editWebhookMessage("edit success");
+      }, reject);
+    }, reject);
 
     // Remove any existing bot instance.
     const botInstance: BotInstance | undefined =
@@ -102,8 +96,16 @@ class BotInstance implements ISpeakingHistoryListener {
     BotInstance._channelIdToBotInstance.set(this._channelId, this);
 
     // Connect to the channel.
-    this._speaking.connect(this._channel);
+    this._speaking.connect(this._channel).then(() => {}, reject);
 
+    commandInteraction.reply(
+      "Speaking bot active, sending TTPG access token via private message."
+    );
+    /*
+    commandInteraction.user.send("private message test").then((message) => {});
+    */
+
+    // Start idle timer.
     this._idleCheckHandle = setTimeout(
       this._idleDisconnect,
       BotInstance.IDLE_TIMEOUT_MS
@@ -111,8 +113,30 @@ class BotInstance implements ISpeakingHistoryListener {
   }
 
   close() {
-    this._speaking.disconnect();
+    console.log(`BotInstance.close`);
     BotInstance._channelIdToBotInstance.delete(this._channel.id);
+
+    try {
+      this._speaking.disconnect();
+    } catch (error) {
+      console.error(`BotInstance.close: ${error}`);
+    }
+
+    if (this._webhook) {
+      console.log(`BotInstance.close: deleting webhook`);
+      try {
+        this._webhook.delete();
+        this._webhook = undefined;
+      } catch (error) {
+        console.error(`BotInstance.close: ${error}`);
+      }
+    }
+  }
+
+  editWebhookMessage(content: string) {
+    if (this._webhookMessage && this._webhookMessage) {
+      this._webhook?.editMessage(this._webhookMessage, { content });
+    }
   }
 
   onSpeakingHistoryUpdated(speakingHistory: SpeakingHistory): void {
@@ -127,21 +151,15 @@ class BotInstance implements ISpeakingHistoryListener {
     }, 1000);
   }
 
-  onSpeakingHistoryDisconnected(): void {
-    this.close();
-  }
-
   updateResponse() {
     const history: Array<SpeakingRecord> = this._speakingHistory.history();
     this._speakingHistorySummary
       .summaryAsync(history)
       .then((summary: string) => {
-        if (this._response) {
-          const id: string = this._response.id;
-          this._response.edit(`Message id: ${id}\n${summary}`);
-        }
+        this.editWebhookMessage(summary);
       });
 
+    // Restart idle timer.
     clearTimeout(this._idleCheckHandle);
     this._idleCheckHandle = setTimeout(
       this._idleDisconnect,
@@ -180,7 +198,3 @@ client.once(Events.ClientReady, (readyClient: Client) => {
 
 console.log("starting bot...");
 client.login(DISCORD_TOKEN);
-
-publicIpv4().then((ip: string) => {
-  console.log(`public IP: ${ip}`);
-});

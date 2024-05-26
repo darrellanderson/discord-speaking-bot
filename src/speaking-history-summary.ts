@@ -31,11 +31,9 @@ export class SpeakingHistorySummary {
       promises.push(this._userIdToName.getAsync(userId));
     }
     return new Promise<string>((resolve, reject) => {
-      Promise.all(promises)
-        .then(() => {
-          resolve(this.summary(history));
-        })
-        .catch(reject);
+      Promise.all(promises).then(() => {
+        resolve(this.summary(history));
+      }, reject);
     });
   }
 

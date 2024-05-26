@@ -2,7 +2,6 @@ import { ISpeakingListener } from "./speaking";
 
 export interface ISpeakingHistoryListener {
   onSpeakingHistoryUpdated(speakingHistory: SpeakingHistory): void;
-  onSpeakingHistoryDisconnected(): void;
 }
 
 export type SpeakingRecord = {
@@ -33,8 +32,6 @@ export class SpeakingHistory implements ISpeakingListener {
     this._evictOldRecords();
     return [...this._speakingRecords];
   }
-
-  onSpeakingConnected(): void {}
 
   onSpeakingStart(userId: string): void {
     let startTimestamp: number | undefined =
@@ -71,10 +68,6 @@ export class SpeakingHistory implements ISpeakingListener {
     });
 
     this._listener.onSpeakingHistoryUpdated(this);
-  }
-
-  onSpeakingDisconnected(): void {
-    this._listener.onSpeakingHistoryDisconnected();
   }
 
   _evictOldRecords(): void {
