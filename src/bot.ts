@@ -104,7 +104,10 @@ class BotInstance implements ISpeakingHistoryListener {
       this.close();
     };
 
-    this._getVoiceChannel(commandInteraction.channel)
+    this._getCommandIssuedBy(commandInteraction)
+      .then(() => {
+        return this._getVoiceChannel(commandInteraction.channel);
+      }, reject)
       .then(() => {
         return this._createWebhook(
           this._voiceChannel,
@@ -324,8 +327,6 @@ class BotInstance implements ISpeakingHistoryListener {
       const b64: string = Buffer.from(json).toString("base64url");
 
       const content: string = [
-        "**Speaking Bot** started by " + (this._commandIssuedBy ?? "<unknown>"),
-        "\n\n",
         "TTPG access token:",
         "```" + b64 + "```",
         "\n",
