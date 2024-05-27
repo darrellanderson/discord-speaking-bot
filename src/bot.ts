@@ -1,5 +1,4 @@
 import {
-  Base,
   Channel,
   Client,
   CommandInteraction,
@@ -7,7 +6,6 @@ import {
   GatewayIntentBits,
   Message,
   TextChannel,
-  User,
   VoiceChannel,
   Webhook,
   WebhookCreateOptions,
@@ -23,9 +21,9 @@ import {
   SpeakingRecord,
 } from "./speaking-history";
 import { Speaking } from "./speaking";
-import { DISCORD_TOKEN } from "../secret.json";
-import { UserIdToName } from "./user-id-to-name";
 import { SpeakingHistorySummary } from "./speaking-history-summary";
+import { UserIdToName } from "./user-id-to-name";
+import { DISCORD_TOKEN } from "../secret.json";
 
 class BotInstance implements ISpeakingHistoryListener {
   private static readonly WEBHOOK_NAME = "Speaking History";
@@ -39,8 +37,8 @@ class BotInstance implements ISpeakingHistoryListener {
   private readonly _userIdToName: UserIdToName;
 
   private _verbose = true;
+  private _connecting = false;
 
-  private _commandInteractionReply: Message | undefined;
   private _voiceChannel: VoiceChannel | undefined;
   private _webhook: Webhook | undefined;
   private _webhookMessage: Message | undefined;
@@ -52,10 +50,23 @@ class BotInstance implements ISpeakingHistoryListener {
   private _idleCheckHandle: NodeJS.Timeout | undefined;
 
   private readonly _idleDisconnect = () => {
-    // Edit the command reply, not the webhook.
-    // Webhook close may race with edit.
-    this._commandInteractionReply?.edit("Idle too long, disconnecting");
-    this.close();
+    if (this._verbose) {
+      console.log("BotInstance: idle disconnect");
+    }
+    if (!this._connecting) {
+      return;
+    }
+    if (this._webhook && this._webhookMessage) {
+      this._webhook
+        .editMessage(this._webhookMessage, {
+          content: "Bot disconnected due to inactivity",
+        })
+        .finally(() => {
+          this.close();
+        });
+    } else {
+      this.close();
+    }
   };
 
   constructor(commandInteraction: CommandInteraction) {
@@ -78,19 +89,21 @@ class BotInstance implements ISpeakingHistoryListener {
     // Register this bot instance.
     BotInstance._channelIdToBotInstance.set(this._channelId, this);
 
+    // Mark as connecting, repeat slash command can cancel it.
+    this._connecting = true;
+
     // Initialize, close on error.
     const reject = (error: string) => {
       console.error(`BotInstance error: ${error}`);
-      if (this._commandInteractionReply) {
-        this._commandInteractionReply.edit(`Error: ${error}`);
+      if (!this._connecting) {
+        return; // already aborted
       }
+      console.log("BotInstance error: sending reply");
+      commandInteraction.reply(`Error: ${error}`);
       this.close();
     };
 
-    this._createCommandInteractionReply(commandInteraction, "Initializing...")
-      .then(() => {
-        return this._getVoiceChannel(commandInteraction.channel);
-      }, reject)
+    this._getVoiceChannel(commandInteraction.channel)
       .then(() => {
         return this._createWebhook(
           this._voiceChannel,
@@ -104,7 +117,7 @@ class BotInstance implements ISpeakingHistoryListener {
         return this._connectSpeaking(this._voiceChannel);
       }, reject)
       .then(() => {
-        return this._editMessageWithAuthToken();
+        return this._createMessageWithAuthToken(commandInteraction);
       }, reject)
       .then(() => {
         if (this._verbose) {
@@ -119,32 +132,6 @@ class BotInstance implements ISpeakingHistoryListener {
   }
 
   /**
-   * Send the initial command reply.
-   * Side effect: sets _commandInteractionReply.
-   *
-   * @param commandInteraction
-   */
-  async _createCommandInteractionReply(
-    commandInteraction: CommandInteraction,
-    content: string
-  ): Promise<Message> {
-    if (this._verbose) {
-      console.log(`BotInstance._createCommandInteractionReply`);
-    }
-    return new Promise<Message>((resolve, reject) => {
-      commandInteraction
-        .reply({
-          content,
-          fetchReply: true,
-        })
-        .then((message: Message): void => {
-          this._commandInteractionReply = message;
-          resolve(message);
-        }, reject);
-    });
-  }
-
-  /**
    * Extract the voice channel.
    * Side effect: sets _voiceChannel.
    *
@@ -156,6 +143,10 @@ class BotInstance implements ISpeakingHistoryListener {
       console.log(`BotInstance._getVoiceChannel`);
     }
     return new Promise<VoiceChannel>((resolve, reject) => {
+      if (!this._connecting) {
+        reject("Canceled");
+        return;
+      }
       if (channel && channel instanceof VoiceChannel) {
         this._voiceChannel = channel;
         resolve(channel);
@@ -181,14 +172,21 @@ class BotInstance implements ISpeakingHistoryListener {
       console.log(`BotInstance._createWebhook`);
     }
     return new Promise<Webhook>((resolve, reject) => {
+      if (!this._connecting) {
+        reject("Canceled");
+        return;
+      }
       if (!channel) {
         reject("No channel");
         return;
       }
 
       // Does webhook already exist?
-
       channel.fetchWebhooks().then((webhooks) => {
+        if (!this._connecting) {
+          reject("Canceled");
+          return;
+        }
         for (const webhook of webhooks.values()) {
           if (
             webhook.name === name &&
@@ -209,6 +207,10 @@ class BotInstance implements ISpeakingHistoryListener {
           name,
         };
         channel.createWebhook(options).then((webhook) => {
+          if (!this._connecting) {
+            reject("Canceled");
+            return;
+          }
           this._webhook = webhook;
           resolve(webhook);
         }, reject);
@@ -232,6 +234,10 @@ class BotInstance implements ISpeakingHistoryListener {
       console.log(`BotInstance._createWebhookMessage`);
     }
     return new Promise<Message>((resolve, reject) => {
+      if (!this._connecting) {
+        reject("Canceled");
+        return;
+      }
       if (!webhook) {
         reject("No webhook");
         return;
@@ -248,6 +254,10 @@ class BotInstance implements ISpeakingHistoryListener {
       console.log(`BotInstance._connectSpeaking`);
     }
     return new Promise<void>((resolve, reject) => {
+      if (!this._connecting) {
+        reject("Canceled");
+        return;
+      }
       if (!channel) {
         reject("No channel");
         return;
@@ -263,11 +273,17 @@ class BotInstance implements ISpeakingHistoryListener {
     });
   }
 
-  _editMessageWithAuthToken(): Promise<void> {
+  _createMessageWithAuthToken(
+    commandInteraction: CommandInteraction
+  ): Promise<Message> {
     if (this._verbose) {
-      console.log(`BotInstance._editMessageWithAuthToken`);
+      console.log(`BotInstance._createMessageWithAuthToken`);
     }
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<Message>((resolve, reject) => {
+      if (!this._connecting) {
+        reject("Canceled");
+        return;
+      }
       if (!this._webhook || !this._webhookMessage) {
         reject("No webhook or message");
         return;
@@ -293,34 +309,23 @@ class BotInstance implements ISpeakingHistoryListener {
         console.log(`|message| = ${content.length}`);
       }
 
-      if (!this._commandInteractionReply) {
-        reject("No command interaction reply");
-        return;
-      }
-      this._commandInteractionReply.edit(content).then(() => {
-        resolve();
-      }, reject);
+      commandInteraction
+        .reply({
+          content,
+          fetchReply: true,
+        })
+        .then((message: Message) => {
+          resolve(message);
+        }, reject);
     });
   }
-
-  /*
-  _createPrivateMessage(user: User, content: string): Promise<Message> {
-    if (this._verbose) {
-      console.log(`BotInstance._createPrivateMessage`);
-    }
-    return new Promise<Message>((resolve, reject) => {
-      user.send(content).then((message: Message): void => {
-        resolve(message);
-      }, reject);
-    });
-  }
-  */
 
   close() {
     if (this._verbose) {
       console.log(`BotInstance.close`);
     }
     BotInstance._channelIdToBotInstance.delete(this._channelId);
+    this._connecting = false;
 
     if (this._speaking) {
       this._speaking.disconnect();
@@ -341,20 +346,13 @@ class BotInstance implements ISpeakingHistoryListener {
       clearTimeout(this._idleCheckHandle);
       this._idleCheckHandle = undefined;
     }
-  }
 
-  editWebhookMessage(content: string): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      if (this._webhookMessage && this._webhookMessage) {
-        this._webhook
-          ?.editMessage(this._webhookMessage, { content })
-          .then(() => {
-            resolve();
-          }, reject);
-      } else {
-        resolve();
-      }
-    });
+    this._voiceChannel = undefined;
+    this._webhook = undefined;
+    this._webhookMessage = undefined;
+    this._speakingHistory = undefined;
+    this._speaking = undefined;
+    this._speakingHistorySummary = undefined;
   }
 
   onSpeakingHistoryUpdated(speakingHistory: SpeakingHistory): void {
@@ -408,7 +406,6 @@ class BotSlashCommandListener implements ISlashCommandListener {
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    //GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.GuildWebhooks,
   ],

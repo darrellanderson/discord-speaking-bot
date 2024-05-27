@@ -32,21 +32,16 @@ export class DiscordPutGet {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ content: message }),
-      })
-        .then((response) => {
-          if (!response.ok) {
-            reject(new Error(`HTTP error: ${response.status}`));
-            return;
-          }
-          response
-            .json()
-            .then((json) => {
-              const messageId = json.id ?? "";
-              resolve(messageId);
-            })
-            .catch(reject);
-        })
-        .catch(reject);
+      }).then((response) => {
+        if (!response.ok) {
+          reject(new Error(`HTTP error: ${response.status}`));
+          return;
+        }
+        response.json().then((json) => {
+          const messageId = json.id ?? "";
+          resolve(messageId);
+        }, reject);
+      }, reject);
     });
   }
 

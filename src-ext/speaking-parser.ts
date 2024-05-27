@@ -20,15 +20,19 @@ export class SpeakingParser {
       if (parts.length !== 3) {
         continue;
       }
-      const endTimestamp: number = parseFloat(parts[0] ?? "0") * 1000;
-      const userId: string = parts[1] ?? "";
-      const durationSecs: number = parseFloat(parts[2] ?? "0");
-      const startTimestamp: number = endTimestamp - durationSecs * 1000;
-      records.push({
-        userId: userId,
-        startTimestamp: startTimestamp,
-        endTimestamp: endTimestamp,
-      });
+      try {
+        const endTimestamp: number = parseFloat(parts[0] ?? "0") * 1000;
+        const userId: string = parts[1] ?? "";
+        const durationSecs: number = parseFloat(parts[2] ?? "0");
+        const startTimestamp: number = endTimestamp - durationSecs * 1000;
+        records.push({
+          userId: userId,
+          startTimestamp: startTimestamp,
+          endTimestamp: endTimestamp,
+        });
+      } catch (e) {
+        // Ignore invalid records.
+      }
     }
     return records;
   }
