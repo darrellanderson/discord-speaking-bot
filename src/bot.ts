@@ -39,6 +39,7 @@ class BotInstance implements ISpeakingHistoryListener {
   private _verbose = true;
   private _connecting = false;
 
+  private _commandIssuedBy: string | undefined;
   private _voiceChannel: VoiceChannel | undefined;
   private _webhook: Webhook | undefined;
   private _webhookMessage: Message | undefined;
@@ -129,6 +130,30 @@ class BotInstance implements ISpeakingHistoryListener {
       this._idleDisconnect,
       BotInstance.IDLE_TIMEOUT_MS
     );
+  }
+
+  async _getCommandIssuedBy(
+    commandInteraction: CommandInteraction
+  ): Promise<string> {
+    if (this._verbose) {
+      console.log(`BotInstance._getCommandIssuedBy`);
+    }
+    return new Promise<string>((resolve, reject) => {
+      if (!this._connecting) {
+        reject("Canceled");
+        return;
+      }
+      if (commandInteraction.user) {
+        this._userIdToName
+          .getAsync(commandInteraction.user.id)
+          .then((name: string) => {
+            this._commandIssuedBy = name;
+            resolve(name);
+          }, reject);
+      } else {
+        reject("No user");
+      }
+    });
   }
 
   /**
@@ -296,6 +321,8 @@ class BotInstance implements ISpeakingHistoryListener {
       const b64: string = Buffer.from(json).toString("base64url");
 
       const content: string = [
+        "**Speaking Bot** started by " + (this._commandIssuedBy ?? "<unknown>"),
+        "\n\n",
         "TTPG access token:",
         "```" + b64 + "```",
         "\n",
