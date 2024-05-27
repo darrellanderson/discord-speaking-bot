@@ -147,6 +147,9 @@ class BotInstance implements ISpeakingHistoryListener {
         this._userIdToName
           .getAsync(commandInteraction.user.id)
           .then((name: string) => {
+            if (this._verbose) {
+              console.log(`BotInstance._getCommandIssuedBy: ${name}`);
+            }
             this._commandIssuedBy = name;
             resolve(name);
           }, reject);
