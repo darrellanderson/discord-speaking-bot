@@ -62,12 +62,17 @@ class BotInstance implements ISpeakingHistoryListener {
     this._channelId = commandInteraction.channelId;
     this._userIdToName = new UserIdToName(commandInteraction.client);
 
-    // Close any existing bot instance.
+    // Close any existing bot instance (does not restart).
     const existingBotInstance: BotInstance | undefined =
       BotInstance._channelIdToBotInstance.get(this._channelId);
     if (existingBotInstance) {
+      if (this._verbose) {
+        console.log("BotInstance: close existing (do not restart)");
+      }
       BotInstance._channelIdToBotInstance.delete(this._channelId);
       existingBotInstance.close();
+      commandInteraction.reply("Shutting down the speaking bot");
+      return;
     }
 
     // Register this bot instance.
@@ -102,7 +107,9 @@ class BotInstance implements ISpeakingHistoryListener {
         return this._editMessageWithAuthToken();
       }, reject)
       .then(() => {
-        console.log(`BotInstance ready`);
+        if (this._verbose) {
+          console.log(`BotInstance ready`);
+        }
       }, reject);
 
     this._idleCheckHandle = setTimeout(
@@ -257,6 +264,9 @@ class BotInstance implements ISpeakingHistoryListener {
   }
 
   _editMessageWithAuthToken(): Promise<void> {
+    if (this._verbose) {
+      console.log(`BotInstance._editMessageWithAuthToken`);
+    }
     return new Promise<void>((resolve, reject) => {
       if (!this._webhook || !this._webhookMessage) {
         reject("No webhook or message");
@@ -272,8 +282,16 @@ class BotInstance implements ISpeakingHistoryListener {
       const content: string = [
         "TTPG access token:",
         "```" + b64 + "```",
-        "This restricted access token lets TTPG read the speaking history message.",
-      ].join("\n");
+        "\n",
+        "This token provides limited access to this channel restricted to **Speaking History** messages.",
+        "  ",
+        "TTPG uses it to read the speaking history message.",
+        "\n\n",
+        "Bot disconnects if idle too long, or run `/speaking` again to manually shut it down.",
+      ].join("");
+      if (this._verbose) {
+        console.log(`|message| = ${content.length}`);
+      }
 
       if (!this._commandInteractionReply) {
         reject("No command interaction reply");
@@ -299,7 +317,9 @@ class BotInstance implements ISpeakingHistoryListener {
   */
 
   close() {
-    console.log(`BotInstance.close`);
+    if (this._verbose) {
+      console.log(`BotInstance.close`);
+    }
     BotInstance._channelIdToBotInstance.delete(this._channelId);
 
     if (this._speaking) {
