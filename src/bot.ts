@@ -27,7 +27,7 @@ import { DISCORD_TOKEN } from "../secret.json";
 
 class BotInstance implements ISpeakingHistoryListener {
   private static readonly WEBHOOK_NAME = "Speaking History";
-  private static readonly IDLE_TIMEOUT_MS = 1000 * 60; //3600;
+  private static readonly IDLE_TIMEOUT_MS = 1000 * 3600;
   private static readonly _channelIdToBotInstance = new Map<
     string,
     BotInstance
