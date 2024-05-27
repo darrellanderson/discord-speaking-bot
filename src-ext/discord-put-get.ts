@@ -53,21 +53,18 @@ export class DiscordPutGet {
    */
   get(messageId: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
-      fetch(`${this.URL}/${this._id}/${this._token}/messages/${messageId}`)
-        .then((response) => {
-          if (!response.ok) {
-            reject(new Error(`HTTP error: ${response.status}`));
-            return;
-          }
-          response
-            .json()
-            .then((json) => {
-              const content: string = json.content ?? "";
-              resolve(content);
-            })
-            .catch(reject);
-        })
-        .catch(reject);
+      fetch(
+        `${this.URL}/${this._id}/${this._token}/messages/${messageId}`
+      ).then((response) => {
+        if (!response.ok) {
+          reject(new Error(`HTTP error: ${response.status}`));
+          return;
+        }
+        response.json().then((json) => {
+          const content: string = json.content ?? "";
+          resolve(content);
+        }, reject);
+      }, reject);
     });
   }
 
@@ -81,15 +78,13 @@ export class DiscordPutGet {
     return new Promise<void>((resolve, reject) => {
       fetch(`${this.URL}/${this._id}/${this._token}/messages/${messageId}`, {
         method: "DELETE",
-      })
-        .then((response) => {
-          if (!response.ok) {
-            reject(new Error(`HTTP error: ${response.status}`));
-            return;
-          }
-          resolve();
-        })
-        .catch(reject);
+      }).then((response) => {
+        if (!response.ok) {
+          reject(new Error(`HTTP error: ${response.status}`));
+          return;
+        }
+        resolve();
+      }, reject);
     });
   }
 }
