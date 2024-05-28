@@ -71,4 +71,66 @@ export class SpeakingAssign {
     }
     return result;
   }
+
+  summarize(
+    name: string,
+    start: number,
+    end: number
+  ): {
+    summary: Array<string>;
+    deltas: Map<string, number>;
+  } {
+    const summary: Array<string> = [];
+    const deltas: Map<string, number> = new Map();
+
+    const duration = (end - start) / 1000;
+    summary.push(`${name} spoke ${duration.toFixed(1)} seconds`);
+
+    const records: Array<SpeakingAssignRecord> = this.addSpeaking(
+      name,
+      start,
+      end
+    );
+
+    for (const record of records) {
+      const offsetStart = record.start - start;
+      const offsetEnd = record.end - start;
+      const prefix = `[${offsetStart.toFixed(1)}:${offsetEnd.toFixed(1)}]`;
+      const duration = record.end - record.start;
+      const speakerCount = record.speakers.length;
+
+      if (speakerCount === 1) {
+        if (record.defaultUser !== undefined) {
+          summary.push(
+            `${prefix} during ${record.defaultUser}, refunding them assigning speaker`
+          );
+          deltas.set(
+            record.defaultUser,
+            (deltas.get(record.defaultUser) ?? 0) - duration
+          );
+          deltas.set(name, (deltas.get(name) ?? 0) + duration);
+        }
+        continue;
+      }
+
+      if (speakerCount > 1) {
+        summary.push(
+          `${prefix} over other speaker(s), splitting cost with them`
+        );
+
+        // Last entry of speakers is the new one, not yet charged.
+        const oldShare = duration / (speakerCount - 1);
+        const newShare = duration / speakerCount;
+        for (const speaker of record.speakers) {
+          let delta = deltas.get(speaker) ?? 0;
+          if (speaker !== name) {
+            delta -= oldShare;
+          }
+          delta += newShare;
+          deltas.set(speaker, delta);
+        }
+      }
+    }
+    return { summary, deltas };
+  }
 }

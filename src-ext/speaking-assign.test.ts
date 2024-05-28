@@ -57,3 +57,16 @@ it("speaking assign add speaking", () => {
     "[3:Infinity] undefined {}",
   ]);
 });
+
+it("speaking assing summarize", () => {
+  const assign = new SpeakingAssign();
+  assign.addChangeTurn("a", 1);
+  assign.addChangeTurn("b", 2);
+
+  const one = assign.summarize("c", 0, 1.1);
+  expect(one.summary).toEqual([]);
+  const two = assign.summarize("d", 1, 3);
+  expect(two.summary).toEqual([]);
+  const three = assign.summarize("e", 0, 3);
+  expect(three.summary).toEqual([]);
+});
