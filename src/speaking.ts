@@ -88,7 +88,11 @@ export class Speaking {
 
     // Release discord state.
     if (this._voiceConnection) {
-      this._voiceConnection.destroy();
+      try {
+        this._voiceConnection.destroy();
+      } catch (e) {
+        console.error("Speaking: VoiceConnection destroy failed", e);
+      }
       this._voiceConnection = undefined;
     }
 

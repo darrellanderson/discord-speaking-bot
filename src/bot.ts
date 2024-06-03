@@ -39,7 +39,6 @@ class BotInstance implements ISpeakingHistoryListener {
   private _verbose = true;
   private _connecting = false;
 
-  private _commandIssuedBy: string | undefined;
   private _voiceChannel: VoiceChannel | undefined;
   private _webhook: Webhook | undefined;
   private _webhookMessage: Message | undefined;
@@ -153,7 +152,6 @@ class BotInstance implements ISpeakingHistoryListener {
             if (this._verbose) {
               console.log(`BotInstance._getCommandIssuedBy: ${name}`);
             }
-            this._commandIssuedBy = name;
             resolve(name);
           }, reject);
       } else {
@@ -359,12 +357,20 @@ class BotInstance implements ISpeakingHistoryListener {
     this._connecting = false;
 
     if (this._speaking) {
-      this._speaking.disconnect();
+      try {
+        this._speaking.disconnect();
+      } catch (e) {
+        console.error("BotInstance.close: speaking disconnect failed", e);
+      }
       this._speaking = undefined;
     }
 
     if (this._webhook) {
-      this._webhook.delete();
+      try {
+        this._webhook.delete();
+      } catch (e) {
+        console.error("BotInstance.close: webhook delete failed", e);
+      }
       this._webhook = undefined;
     }
 
